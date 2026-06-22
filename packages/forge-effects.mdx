@@ -1,0 +1,72 @@
+---
+title: "forge-effects"
+description: "Timed or permanent status effects that push attribute modifiers and tags while active."
+---
+
+`forge-effects` is the buff/debuff engine. An effect is a definition (id, duration, modifiers, tags)
+that, when applied to a character, pushes attribute modifiers into `forge-attributes` and tags onto
+the character for as long as it is active, then removes them cleanly on expiry or removal.
+
+## Concepts
+
+- **Definition.** A stable `effect:<name>` with an optional `duration_sec`, a `stack_rule`, optional
+  `tags`, and `modifiers` to apply while active.
+- **Instance.** A live application on a character, with a `source_id` so you can remove everything
+  from one source at once.
+- **Stacking.** `replace` (re-applying refreshes the timer) or `stack` (up to `max_stacks`).
+
+## Exports
+
+### Registry
+
+| Export | Signature |
+|---|---|
+| `RegisterEffect` | `RegisterEffect(def)` |
+| `GetEffect` | `GetEffect(effect_id)` → `Result{ data = { definition } }` |
+| `HasEffect` | `HasEffect(effect_id)` → `boolean` |
+
+### Apply & query
+
+| Export | Signature | Returns |
+|---|---|---|
+| `ApplyEffect` | `ApplyEffect(character_id, effect_id, opts)` | `Result{ data = { instance_id } }` |
+| `RemoveEffect` | `RemoveEffect(character_id, instance_id)` | `Result` |
+| `RemoveEffectsBySource` | `RemoveEffectsBySource(character_id, source_id)` | `Result` |
+| `RemoveEffectsByTag` | `RemoveEffectsByTag(character_id, tag)` | `Result` |
+| `GetActiveEffects` | `GetActiveEffects(character_id)` | `Result{ data = { effects } }` |
+| `HasActiveEffect` | `HasActiveEffect(character_id, effect_id)` | `boolean` |
+| `ClearEffects` | `ClearEffects(character_id)` | `Result` |
+
+### Definition shape
+
+```lua
+exports["forge-effects"]:RegisterEffect({
+  id           = "effect:well_fed",
+  label        = "Well Fed",
+  duration_sec = 120,             -- omit for permanent
+  stack_rule   = "replace",       -- or "stack" with max_stacks
+  tags         = { "food", "buff" },
+  modifiers    = { { attribute_id = "attr:constitution", value = 2, op = "add" } },
+})
+
+exports["forge-effects"]:ApplyEffect(cid, "effect:well_fed", { source_id = "item:bread" })
+```
+
+<Warning>
+  Effect modifiers use **`attribute_id`** (not `attribute`). The `equip` block on items uses
+  `attribute`. This is a deliberate but easy-to-miss difference.
+</Warning>
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-effects:server:applied` | `{ character_id, instance_id, effect_id }` |
+| `forge-effects:server:removed` | `{ character_id, instance_id, effect_id }` |
+| `forge-effects:server:expired` | `{ character_id, instance_id, effect_id }` |
+
+## Configuration
+
+Ships one neutral default, `effect:well_fed`, in editable `shared/data/effects.lua`
+(`ForgeEffects.DefaultEffects`), gated by `Config.ShipDefaults`. The shipped `item:bread` grants it
+on use. See [add an effect](/guides/add-an-effect).

@@ -1,0 +1,50 @@
+---
+title: "forge-loot"
+description: "Loot tables, weighted rolling, and delivery to a holder or the ground."
+---
+
+`forge-loot` turns a table definition into items and delivers them. It rolls weighted entries, mints
+instances through `forge-items`, and either grants them to a container or spills overflow to a world
+drop.
+
+## Concepts
+
+- **Table.** A stable `loot:<name>` with `rolls`, weighted `entries`, and always-included
+  `guaranteed` items. An entry can be an item, a quantity range, or `nothing`.
+- **Roll vs Grant.** `Roll` computes a result without delivering; `Grant` rolls and delivers to a
+  character (overflow becomes a drop).
+
+## Exports
+
+| Export | Signature | Returns |
+|---|---|---|
+| `RegisterTable` | `RegisterTable(def)` | `Result` |
+| `RegisterTables` | `RegisterTables(list)` | `Result` |
+| `Roll` | `Roll(table_id, opts)` | `Result{ data = { items } }`, no delivery |
+| `Grant` | `Grant(character_id, table_id, opts)` | `Result{ data = { granted, overflowed, overflow_drop_id } }` |
+| `DropLoot` | `DropLoot(table_id, position, opts)` | roll and spawn a world drop |
+| `FillStash` | `FillStash(stash_id, table_id, opts)` | populate a stash from a table |
+| `GatherNode` | `GatherNode(character_id, node)` | gather-style roll (used by interactions) |
+
+### Table shape
+
+```lua
+exports["forge-loot"]:RegisterTable({
+  id    = "loot:goblin_drop",
+  rolls = 1,
+  entries    = { { weight = 100, item = "item:goblin_pelt", qty = { 1, 2 } } },
+  guaranteed = { { item = "item:goblin_pelt", qty = 1 } },
+})
+
+exports["forge-loot"]:Grant(killerCid, "loot:goblin_drop", { source = "kill" })
+```
+
+<Tip>
+  `qty` can be a number or a `{ min, max }` range. A `{ weight, nothing = true }` entry lets a roll
+  produce nothing.
+</Tip>
+
+## Configuration
+
+`forge-loot` ships **no content** (tables are creator-defined). `Config.Tables` and the `RegisterTable`
+export are the registration paths. Overflow on `Grant` spills to a world drop near the character.

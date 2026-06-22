@@ -1,0 +1,69 @@
+---
+title: "forge-characters"
+description: "Character identity, multi-character rosters, creation, appearance, activation, and staging."
+---
+
+`forge-characters` owns the player's characters: the roster, creation with a configurable identity
+schema, appearance (HELIX cosmetics), and the activation lifecycle that brings a character into the
+world. A **character_id** is the key the rest of FORGE hangs state on; the underlying account is a
+HELIX User ID owned by `forge-core`.
+
+## Concepts
+
+- **User vs character.** One user (HELIX User ID) owns many characters. Most gameplay packages key
+  off `character_id`.
+- **Activation.** Selecting a character activates it and fires `forge-characters:server:activated`,
+  the signal other packages load character state on.
+- **Creation schema.** Structured name parts plus configurable identity fields (age, origin, etc.),
+  shipped as a generic set you can edit in `shared/data/identity_fields.lua`.
+
+## Exports
+
+### Roster & lifecycle
+
+| Export | Signature | Returns |
+|---|---|---|
+| `ListCharacters` | `ListCharacters(user_id)` | `Result{ data = { characters } }` |
+| `CreateCharacter` | `CreateCharacter(user_id, values)` | `Result{ data = { character_id } }` |
+| `DeleteCharacter` | `DeleteCharacter(character_id)` | `Result` |
+| `GetCharacter` | `GetCharacter(character_id)` | `Result{ data = { ... } }` |
+| `Exists` | `Exists(character_id)` | `Result` |
+| `SelectCharacter` | `SelectCharacter(user_id, character_id)` | activates the character |
+| `Deactivate` | `Deactivate(user_id, reason)` | `"switch"\|"disconnect"\|"deleted"` |
+
+### Resolvers
+
+| Export | Signature | Returns |
+|---|---|---|
+| `GetActiveCharacterId` | `GetActiveCharacterId(user_id)` | `Result{ data = { character_id } }` |
+| `GetActiveUserId` | `GetActiveUserId(character_id)` | `Result{ data = { user_id } }` |
+| `GetCharacterByController` | `GetCharacterByController(controller)` | `Result{ data = { character_id } }`, the canonical way for a native/client callback to resolve a cid |
+
+### Identity & appearance
+
+| Export | Signature |
+|---|---|
+| `GetCreationSchema` | `GetCreationSchema()`, name parts + identity fields, typed and ordered |
+| `GetIdentitySchema` | `GetIdentitySchema()` |
+| `GetIdentity` | `GetIdentity(character_id)` |
+| `SetIdentityField` | `SetIdentityField(character_id, field, value)` |
+| `RegisterIdentitySource` | `RegisterIdentitySource(field, source)`, feed options into a creation field from another system |
+| `SetAppearance` | `SetAppearance(character_id, appearance)`, persist captured HELIX cosmetics |
+
+## Events
+
+| Event | Payload | When |
+|---|---|---|
+| `forge-characters:server:activated` | `{ character_id }` | a character entered the world |
+| `forge-characters:server:deactivated` | `{ character_id }` | a character left (switch/logout) |
+
+<Tip>
+  Most packages do their per-character setup on `forge-characters:server:activated` and clear it on
+  `deactivated`. That is the hook your content package uses to grant starter gear, spawn NPCs, and
+  so on.
+</Tip>
+
+## Configuration
+
+Identity fields ship as an editable generic set (`shared/data/identity_fields.lua`), gated by
+`Config.ShipDefaults`. Name composition (structured first/last) and field ordering live in `Config`.

@@ -47,6 +47,47 @@
             "pages": [
               "packages/overview"
             ]
+          },
+          {
+            "group": "Foundation",
+            "pages": [
+              "packages/forge-core",
+              "packages/forge-ui",
+              "packages/forge-devtools",
+              "packages/forge-tests"
+            ]
+          },
+          {
+            "group": "Character",
+            "pages": [
+              "packages/forge-characters",
+              "packages/forge-attributes",
+              "packages/forge-progression",
+              "packages/forge-effects"
+            ]
+          },
+          {
+            "group": "Items & world",
+            "pages": [
+              "packages/forge-items",
+              "packages/forge-inventory",
+              "packages/forge-equipment",
+              "packages/forge-loot",
+              "packages/forge-crafting",
+              "packages/forge-economy",
+              "packages/forge-interactions",
+              "packages/forge-instancing"
+            ]
+          },
+          {
+            "group": "Gameplay",
+            "pages": [
+              "packages/forge-combat",
+              "packages/forge-abilities",
+              "packages/forge-quests",
+              "packages/forge-factions",
+              "packages/forge-admin"
+            ]
           }
         ]
       }

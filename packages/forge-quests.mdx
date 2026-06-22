@@ -1,0 +1,74 @@
+---
+title: "forge-quests"
+description: "Quest registry, a progress state machine, event-driven objectives, rewards, and dialogue."
+---
+
+`forge-quests` runs quests: accept, progress through stages and objectives, turn in, and reward.
+Objectives are event-driven, riding on the events other packages already fire (kills, collects,
+interacts, casts). It also includes a minimal server-authoritative dialogue system.
+
+## Concepts
+
+- **Quest.** A stable `quest:<name>` with stages, each holding objectives. Optional `autoTurnIn`,
+  `repeatable`, and `rewards`.
+- **Objective kinds.** `kill`, `collect`, `interact`, `cast`, `reach`, `talk`, `custom`. They match
+  on events, so no polling.
+- **Dialogue.** A `dlg:<name>` node tree whose choices can accept quests, gated by quest state.
+
+## Exports
+
+### Registry
+
+| Export | Signature |
+|---|---|
+| `RegisterQuest` / `RegisterQuests` | register quest definitions |
+| `RegisterDialogue` / `RegisterDialogues` | register dialogue trees |
+
+### Progress
+
+| Export | Signature | Returns |
+|---|---|---|
+| `AcceptQuest` | `AcceptQuest(character_id, quest_id)` | `Result` |
+| `AbandonQuest` / `FailQuest` / `TurnInQuest` | state transitions |
+| `GetQuestLog` | `GetQuestLog(character_id)` | `Result{ data = { quests } }` |
+| `GetQuestState` | `GetQuestState(character_id, quest_id)` | `Result` |
+| `AdvanceObjective` | `AdvanceObjective(character_id, quest_id, objective_id, n)` | manual progress for `custom` objectives |
+
+### Dialogue
+
+| Export | Signature |
+|---|---|
+| `StartDialogue` | `StartDialogue(character_id, { dialogue })`, the canonical interaction outcome handler |
+| `ChooseDialogueOption` | `ChooseDialogueOption(character_id, choice)` |
+| `EndDialogue` | `EndDialogue(character_id)` |
+
+### Quest shape
+
+```lua
+exports["forge-quests"]:RegisterQuest({
+  id = "quest:first_lesson", label = "The First Lesson", category = "lesson",
+  autoTurnIn = true,
+  repeatable = { reset = 0 },
+  stages = {
+    { label = "Trial", objectives = {
+      { id = "slay", kind = "kill", archetype = "npc:training_dummy", count = 3 },
+    } },
+  },
+  rewards = { xp = { amount = 150 } },
+})
+```
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-quests:server:accepted` | `{ character_id, quest_id }` |
+| `forge-quests:server:objectiveProgress` | `{ character_id, quest_id, count, target }` |
+| `forge-quests:server:stageCompleted` | `{ character_id, quest_id }` |
+| `forge-quests:server:turnedIn` | `{ character_id, quest_id }` |
+| `forge-quests:server:failed` / `abandoned` | quest outcomes |
+
+## Configuration
+
+`forge-quests` ships **no content**; quests and dialogue are creator-defined. `Config.Rules` caps
+active quests; `Config.Reach` tunes the proximity poll for `reach` objectives.

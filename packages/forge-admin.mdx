@@ -1,0 +1,56 @@
+---
+title: "forge-admin"
+description: "An audited, permission-gated GM surface that wraps owning-package exports. Adds zero gameplay."
+---
+
+`forge-admin` is the moderation and live-storytelling layer. It adds **no** gameplay of its own;
+instead it exposes owning-package actions behind an authorized path: permission check, validate,
+call the wrapped export, and write an audit row (including failures). It also owns durable roles and
+moderation (bans, kick).
+
+## Concepts
+
+- **Action.** A registered admin operation with a permission, parameter spec, and a handler that is
+  a `{ pkg, export }` reference to the owning package's export.
+- **Role.** A durable named role that expands to a set of permissions, re-synced into `forge-core`
+  on join and on change. Wildcards (`admin.give.*`) expand at grant time.
+- **Audit.** Every execution writes a row, success or failure.
+
+## Exports
+
+### Actions & execution
+
+| Export | Signature | Returns |
+|---|---|---|
+| `RegisterAdminAction` | `RegisterAdminAction(def)` | register an action (`{ id, permission, params, handler = { pkg, export }, command? }`) |
+| `ExecuteAction` | `ExecuteAction(actor, action_id, params)` | gate → validate → wrapped export → audit |
+| `PanelState` | `PanelState(actor)` | server-filtered actions the actor may see |
+
+### Roles & moderation
+
+| Export | Signature |
+|---|---|
+| `SetRole` / `GetRole` / `ListRoles` | durable role management |
+| `Ban` / `Unban` / `IsBanned` | account (`user_id`) bans with lazy expiry |
+| `GetAuditLog` | `GetAuditLog(opts)` |
+
+```lua
+exports["forge-admin"]:RegisterAdminAction({
+  id = "admin.heal", permission = "admin.heal",
+  params = { { name = "target", type = "character" } },
+  handler = { pkg = "forge-combat", export = "Heal" },
+  command = "heal",
+})
+```
+
+<Warning>
+  Handlers must be a `{ pkg, export }` reference, not a raw function. HELIX serializes export-call
+  arguments and drops a raw function across the boundary, so a function handler registered via the
+  export is ignored. (In-process built-ins may use functions directly.)
+</Warning>
+
+## Configuration
+
+`forge-admin` ships built-in actions feature-detected per present package (combat revive/kill,
+progression unlock/XP, effects apply, loot grant, and so on), plus role definitions. It adds zero
+gameplay. The `/fadmin` chat-command surface and `Kick` API are Studio-verify items.

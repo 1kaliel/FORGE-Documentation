@@ -1,0 +1,59 @@
+---
+title: "forge-combat"
+description: "FORGE-authoritative HP, damage with a validator chain, death, heal, revive, and archetypes."
+---
+
+`forge-combat` owns hit points and the damage pipeline. HP is FORGE-authoritative: any entity with a
+combat id (a player character or a synthetic `npc:` id) has HP that only this package changes. It is
+decoupled from rewards; it fires events and lets content react.
+
+## Concepts
+
+- **Combat id.** A `character_id` for players, or a synthetic id (for example `npc:dummy_1`) for
+  NPCs. HP lives on the id, not on a pawn.
+- **Damage validators.** A veto chain: registered validators can block a hit (friendly fire,
+  invulnerability) before it lands.
+- **Death is an event.** Reaching 0 HP fires `forge-combat:server:died`; what happens next (loot,
+  XP, respawn) is the content's job.
+
+## Exports
+
+| Export | Signature | Returns |
+|---|---|---|
+| `GetHP` | `GetHP(id)` | `Result{ data = { current_hp, max_hp } }` |
+| `IsDead` | `IsDead(id)` | `Result` |
+| `SetMaxHP` | `SetMaxHP(id, max)` | `Result` |
+| `DealDamage` | `DealDamage(id, amount, source, ctx?)` | `Result` (runs the validator chain; `ctx = { attacker, spec }`) |
+| `Heal` | `Heal(id, amount)` | `Result` |
+| `Revive` | `Revive(id, hp)` | `Result` |
+| `RegisterDamageValidator` | `RegisterDamageValidator(pkg, export)` | add a veto to the chain |
+| `SetArchetype` / `GetArchetype` | tag an id with an archetype (carried in the `died` event for quest kill objectives) |
+
+```lua
+local fc = exports["forge-combat"]
+fc:SetMaxHP("npc:dummy_1", 30)
+fc:Revive("npc:dummy_1", 30)          -- ensure full HP (synthetic ids can carry stale 0 across runs)
+fc:DealDamage("npc:dummy_1", 8, casterCid)
+```
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-combat:server:damaged` | `{ character_id, damage, current_hp, source }` |
+| `forge-combat:server:died` | `{ character_id, source, archetype? }` |
+| `forge-combat:server:blocked` | `{ ..., reason }`, a validator vetoed the hit |
+
+<Note>
+  HELIX native health cannot be disabled. FORGE HP is authoritative; native health is neutralized on
+  the player pawn (the example content does this via `SetEntityInvincible`), and FORGE drives death
+  and respawn. See the example content for the coexistence pattern (ADR 0001).
+</Note>
+
+## Configuration
+
+```lua
+Config = { DefaultMaxHP = 100, DefaultHP = 100, ReviveHP = 1 }
+```
+
+`forge-combat` ships **no content**; these are tunables.

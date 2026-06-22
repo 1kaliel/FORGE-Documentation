@@ -1,0 +1,65 @@
+---
+title: "forge-equipment"
+description: "Worn and wielded items as an equip container, with slot fit rules and equip consequences."
+---
+
+`forge-equipment` models the character's equipped set as an inventory container
+(`equip:<character_id>`) with named slots. Equipping is a normal inventory move; the package adds
+fit rules and **consequences**: the attribute modifiers and granted effects an item applies while
+it occupies a slot.
+
+## Concepts
+
+- **Slots.** Named slots (`slot:mainhand`, `slot:helm`, …). Ships a generic 12-slot paper-doll set.
+- **Fit.** An item fits a slot if its `equipSlot` matches, or its `type`/tags are in the slot's
+  `accepts`. Enforced by a placement validator, so a client drag cannot bypass it.
+- **Consequences.** On equip, the item's `equip.modifiers` are applied to `forge-attributes` and any
+  `equip.grantEffect` is applied via `forge-effects`, scoped to the instance. On unequip, both are
+  removed. They are re-applied on character activation.
+
+## Exports
+
+| Export | Signature | Returns |
+|---|---|---|
+| `Equip` | `Equip(character_id, bag_slot, equip_slot)` | `Result` (a bag → equip move) |
+| `Unequip` | `Unequip(character_id, equip_slot)` | `Result` (equip → bag) |
+| `GetEquipped` | `GetEquipped(character_id)` | `Result{ data = { slots } }` |
+| `GetEquippedInSlot` | `GetEquippedInSlot(character_id, slot_id)` | `Result{ data = { slot, instance } }` |
+| `HasEquippedTag` | `HasEquippedTag(character_id, tag)` | **plain `boolean`** (breaks the Result convention) |
+| `CanEquip` | `CanEquip(item_id, slot_id)` | `Result{ data = { fit } }`, UI drop guard |
+| `GetSlotLayout` | `GetSlotLayout()` | `Result{ data = { slots } }`, ordered `{ id, label, accepts }` for a paper-doll |
+| `ValidatePlacement` | `ValidatePlacement(container_id, slot, instance)` | the registered inventory validator |
+| `GetWeaponProfile` | `GetWeaponProfile(item_id)` | the item's `weapon` block |
+| `GetEquippedWeaponProfile` | `GetEquippedWeaponProfile(character_id)` | the mainhand's weapon profile |
+| `DamageEquipment` | `DamageEquipment(character_id, equip_slot, amount)` | durability (deferred) |
+
+### The `equip` block (on the item definition)
+
+```lua
+equip = {
+  modifiers   = { { attribute = "attr:strength", value = 5, op = "add" } },
+  grantEffect = "effect:well_fed",   -- string or list; optional
+}
+```
+
+<Warning>
+  The equip block uses `attribute`; `forge-effects` modifiers use `attribute_id`. Both are
+  intentional; just match the right one to the right system.
+</Warning>
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-equipment:server:equipped` | `{ character_id, slot, instanceId, item_id }` |
+| `forge-equipment:server:unequipped` | `{ character_id, slot, instanceId, item_id, reason }` |
+| `forge-equipment:server:itemBroken` | `{ character_id, slot, instanceId }` |
+
+Consequences are re-applied on `forge-characters:server:activated`, because attributes clears its
+modifiers on deactivate and inventory load does not re-fire `itemAdded` for persisted slots.
+
+## Configuration
+
+The 12 slots ship in editable `shared/data/slots.lua` (`ForgeEquipment.DefaultSlots`), gated by
+`Config.ShipDefaults`. Durability, two-handed blocking, requirements, and cosmetic visuals are
+roadmap items beyond v0.1.

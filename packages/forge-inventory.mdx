@@ -1,0 +1,76 @@
+---
+title: "forge-inventory"
+description: "Containers: the player bag, world drops, and stashes. The single authority for where item instances live."
+---
+
+`forge-inventory` owns **containers** and the moves between them. Equipment, loot, crafting, and
+economy all move items through this package rather than holding their own storage.
+
+## Concepts
+
+- **Container id.** A string key. The player bag is `inv:<character_id>`; the equip container is
+  `equip:<character_id>`; stashes use their own ids.
+- **Container types.** `player`, `drop`, `stash` (creators can register more), each with slot and
+  weight caps and a placement policy. Containers lazy-load from the database on first access.
+- **Slots.** Grid containers have indexed slots; equip-style containers have named slots. Placement
+  validators (registered by other packages) gate what may go where.
+
+## Exports
+
+### Items in containers
+
+| Export | Signature | Returns |
+|---|---|---|
+| `AddItem` | `AddItem(container_id, instance)` | `Result{ data = { slot } }` |
+| `RemoveItem` | `RemoveItem(container_id, slot, qty?)` | `Result` |
+| `MoveItem` | `MoveItem(from, to, qty?)` | `Result`, `from`/`to` are `{ container_id, slot? }`; merges and swaps handled |
+| `GetContainer` | `GetContainer(container_id)` | `Result{ data = { slots, caps, ... } }` (lazy-loads) |
+| `FindItems` / `CountItem` | locate or count an item id in a container |
+| `CanFit` | `CanFit(container_id, item, qty)` | weight + slot + stack aware |
+| `UpdateInstanceState` | `UpdateInstanceState(container_id, slot, patch)` | persist a durability/meta change |
+| `FlushContainerNow` | `FlushContainerNow(container_id)` | force a write-through |
+
+### Use, drops, stashes
+
+| Export | Signature |
+|---|---|
+| `UseItem` | `UseItem(character_id, container_id, slot)`, runs the item's `use.outcome` |
+| `RegisterUseOutcome` | `RegisterUseOutcome(kind, { pkg, export })`, add a custom use-outcome kind |
+| `CreateDrop` | `CreateDrop(items, position)`, a world pile |
+| `DropItem` | `DropItem(character_id, container_id, slot)` |
+| `PickupDrop` | `PickupDrop(character_id, drop_id)`, distance-gated |
+| `CreateStash` | `CreateStash(stash_id, opts)` |
+| `OpenContainer` | `OpenContainer(character_id, container_id)`, open a secondary (stash) on the player's screen |
+| `CloseContainer` | `CloseContainer(character_id, container_id)` |
+
+### Container setup
+
+| Export | Signature |
+|---|---|
+| `RegisterContainerType` | `RegisterContainerType(typeId, spec)`, caps + named slots |
+| `RegisterPlacementValidator` | `RegisterPlacementValidator(typeId, pkg, export)`, gate placement per type |
+| `EnsureContainer` / `EvictContainer` | create-on-demand / drop from cache |
+
+```lua
+local fv = exports["forge-inventory"]
+local add = fv:AddItem("inv:" .. cid, instance)         -- into the bag
+fv:MoveItem({ container_id = "inv:" .. cid, slot = add.data.slot },
+            { container_id = "equip:" .. cid, slot = "slot:mainhand" })
+```
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-inventory:server:itemAdded` | `{ container_id, slot, instance }` |
+| `forge-inventory:server:itemRemoved` | `{ container_id, slot, instance }` |
+| `forge-inventory:server:used` | `{ character_id, container_id, slot, ... }` |
+| `forge-inventory:client:dropSpawn` / `dropDespawn` | world-drop visuals |
+
+`itemAdded`/`itemRemoved` on the equip container are how `forge-equipment` learns to apply or remove
+consequences.
+
+## Status notes
+
+`GiveItem` (direct player-to-player give) is deferred to a later version. `UseItem`, drops,
+stashes, and the combined inventory screen are implemented.

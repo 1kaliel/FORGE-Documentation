@@ -1,0 +1,51 @@
+---
+title: "forge-progression"
+description: "Levels, an XP curve, attribute points, and refcounted unlocks."
+---
+
+`forge-progression` tracks how a character advances: experience, levels off a configurable curve,
+unspent attribute points, and **unlocks** (refcounted flags other systems use to gate content like
+recipes or abilities).
+
+## Concepts
+
+- **XP & levels.** `GainXP` adds experience; crossing a threshold levels up and awards points. The
+  curve is `floor(Base * (L-1)^Factor)`.
+- **Unlocks.** A source-scoped, refcounted set. `forge-crafting` knowledge and ability learning ride
+  on unlocks, so the same id can be granted by several sources and only revoked when the last
+  releases it.
+
+## Exports
+
+| Export | Signature | Returns |
+|---|---|---|
+| `GetProgression` | `GetProgression(character_id)` | `Result` with `{ level, xp_total, xp_next, unspent_pts }` |
+| `GetLevel` | `GetLevel(character_id)` | `Result{ data = { level } }` |
+| `GainXP` | `GainXP(character_id, amount)` | `Result` (may trigger a level-up) |
+| `SpendPoints` | `SpendPoints(character_id, n)` | `Result` |
+| `GrantUnlock` | `GrantUnlock(character_id, unlock_id, source)` | `Result` (refcounted by source) |
+| `RevokeUnlock` | `RevokeUnlock(character_id, unlock_id, source)` | `Result` |
+| `HasUnlock` | `HasUnlock(character_id, unlock_id)` | `Result` |
+| `GetUnlocks` | `GetUnlocks(character_id)` | `Result{ data = { unlocks } }` |
+
+```lua
+exports["forge-progression"]:GainXP(cid, 150)
+exports["forge-progression"]:GrantUnlock(cid, "ability:fireball", "quest:first_lesson")
+```
+
+## Events
+
+| Event | Payload | When |
+|---|---|---|
+| `forge-progression:server:loaded` | `{ character_id }` | progression loaded/warmed for a character |
+| `forge-progression:server:leveledUp` | `{ character_id, level }` | a level threshold was crossed |
+
+## Configuration
+
+```lua
+XpCurve = { Base = 100, Factor = 1.5, MaxLevel = 50 },
+PointsPerLevel = 1,
+```
+
+`forge-progression` ships **no content** (the curve and points are tunables, not data). Unlocks and
+the things they gate are defined by the systems that use them.

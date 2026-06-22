@@ -1,0 +1,61 @@
+---
+title: "forge-factions"
+description: "Membership with ranks and permissions, reputation tiers, points and leaderboards, and a friendly-fire validator."
+---
+
+`forge-factions` models groups a character can belong to or stand with. Membership (ranks and
+faction-scoped permissions) and reputation (standing tiers) are separate axes, so a character can be
+a member of one faction and merely liked or hated by others.
+
+## Concepts
+
+- **Faction.** A stable `faction:<name>` with ranks, faction-scoped permissions (`faction.*`),
+  exclusivity groups, and reputation tiers.
+- **Membership vs reputation.** Membership is "I belong, at this rank." Reputation is "this faction
+  regards me at this tier." Unlocks can be granted by rank or tier (refcounted).
+- **Friendly fire.** A damage validator that can block hits between allied members.
+
+## Exports
+
+### Registry & membership
+
+| Export | Signature |
+|---|---|
+| `RegisterFaction` / `RegisterFactions` | register definitions |
+| `GetFaction` / `GetFactions` | query |
+| `Join` / `Leave` | `Join(character_id, faction_id, opts)` |
+| `Invite` / `AcceptInvite` / `DeclineInvite` | invite flow (TTL) |
+| `Kick` / `SetRank` | `SetRank(character_id, faction_id, rank)` |
+| `GetMembership` / `GetMemberships` / `GetMembers` | query membership |
+| `HasFactionPermission` | `HasFactionPermission(character_id, faction_id, perm)` |
+
+### Reputation, points, relations
+
+| Export | Signature |
+|---|---|
+| `ModifyReputation` | `ModifyReputation(character_id, faction_id, delta)` |
+| `GetReputation` / `GetTier` | standing and its tier |
+| `AddPoints` / `GetLeaderboard` | faction points and rankings |
+| `GetFactionStandings` | all standings for a character |
+| `GetRelation` | faction-to-faction relation |
+| `ValidateDamage` | the friendly-fire damage validator (registered with `forge-combat`) |
+| `GetIdentityOptions` | feed faction choices into character creation |
+
+```lua
+local ff = exports["forge-factions"]
+ff:Join(cid, "faction:academy", {})
+ff:ModifyReputation(cid, "faction:academy", 50)
+```
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-factions:server:joined` / `left` | membership changes |
+| `forge-factions:server:rankChanged` | `{ character_id, faction_id, rank }` |
+| `forge-factions:server:reputationChanged` | `{ character_id, faction_id, tier }` |
+
+## Configuration
+
+`forge-factions` ships **no content**; factions are creator-defined via `Config.Factions` or the
+register exports. An admin bypass requires an explicit `opts.admin` flag, not an ambient permission.

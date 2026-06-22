@@ -1,0 +1,61 @@
+---
+title: "forge-economy"
+description: "Audited wallets, currencies, shops, proximity pay, and trade."
+---
+
+`forge-economy` owns money. Wallets are **write-through and audited**: every change commits the
+balance and a log row in a single transaction, because money is the core of dupe forensics. On top
+of wallets it provides shops, proximity pay, and a full trade flow.
+
+## Concepts
+
+- **Currency.** A stable id (`coin`) with a `scope` (`character` or `account`), optional `cap` and
+  `decimals`. The wallet owner is a character id or a user id depending on scope.
+- **StartingBalances.** Granted once on a character's first activation.
+- **Audited.** Deposits, withdrawals, and transfers each write a balance change plus a ledger row
+  atomically.
+
+## Exports
+
+### Wallets & currencies
+
+| Export | Signature | Returns |
+|---|---|---|
+| `RegisterCurrency` | `RegisterCurrency(def)` | `Result` |
+| `GetBalance` | `GetBalance(owner, currency)` | `Result{ data = { balance } }` |
+| `CanAfford` | `CanAfford(owner, currency, amount)` | `boolean` |
+| `Deposit` | `Deposit(owner, currency, amount, reason)` | `Result` |
+| `Withdraw` | `Withdraw(owner, currency, amount, reason)` | `Result` |
+| `Transfer` | `Transfer(from, to, currency, amount, reason)` | `Result` (atomic) |
+| `OwnerFor` | `OwnerFor(character_id, currency)` | resolve the wallet owner id honoring scope |
+| `GetTransactionLog` | `GetTransactionLog(owner, opts)` | the audit ledger |
+
+### Shops, pay, trade
+
+| Export | Signature |
+|---|---|
+| `RegisterShop` / `GetShop` / `OpenShop` | shop definitions and the buy/sell screen context |
+| `Buy` / `Sell` | `Buy(character_id, shop_id, slot, qty)` / `Sell(...)` |
+| `Pay` | `Pay(from, to, currency, amount)`, proximity player-to-player pay |
+| `RequestTrade` / `AcceptTrade` / `CancelTrade` | trade-window lifecycle |
+| `SetTradeOffer` / `LockTrade` / `ConfirmTrade` | two-phase escrow commit |
+
+```lua
+exports["forge-economy"]:Deposit(cid, "coin", 100, "starting")
+local r = exports["forge-economy"]:GetBalance(cid, "coin")  -- r.data.balance == 100
+```
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-economy:server:balanceChanged` | `{ owner_id, currency, balance, delta, reason }` |
+| `forge-economy:server:tradeCompleted` / `tradeCancelled` | trade outcomes |
+
+Loot and quest currency rewards bridge into `Deposit` automatically.
+
+## Configuration
+
+Ships one neutral currency, `coin` (character scope), plus `StartingBalances = { coin = 100 }`, in
+editable `shared/data/currencies.lua` (`DefaultCurrencies` / `DefaultStartingBalances`), gated by
+`Config.ShipDefaults`. Pay and trade distances and rate caps live in `Config`.

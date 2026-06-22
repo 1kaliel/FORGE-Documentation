@@ -1,0 +1,70 @@
+---
+title: "forge-items"
+description: "The item catalog and instance toolkit: the shared vocabulary every item system speaks."
+---
+
+`forge-items` owns immutable item **definitions** and the helpers to create and reason about item
+**instances**. It has no opinion on where items live; inventory, equipment, loot, crafting, and
+economy all consume definitions and pass instances around.
+
+## Concepts
+
+- **Definition.** A stable `item:<name>` with type, label, weight, rarity, stack size, tags, and
+  optional open blocks (`equip`, `weapon`, `use`). Immutable, shared on server and client.
+- **Instance.** A value object: `{ instanceId, defId, quantity, durability?, meta }`. The holder
+  (inventory, drop, equipment) persists it; there is no separate items table.
+- **Open blocks.** Definitions are open tables. Consumer packages read their own blocks; unknown
+  blocks ride along untouched.
+
+## Exports
+
+### Definitions
+
+| Export | Signature | Returns |
+|---|---|---|
+| `RegisterItem` | `RegisterItem(def)` | `Result` |
+| `RegisterItems` | `RegisterItems(list)` | `Result` |
+| `GetDefinition` | `GetDefinition(id)` | `Result{ data = { definition } }` |
+| `HasDefinition` | `HasDefinition(id)` | `boolean` |
+| `GetDefinitions` | `GetDefinitions(filter)` | `Result{ data = { items } }`, filter by `type`/`tag`/`rarity` |
+| `GetRarities` | `GetRarities()` | `Result` |
+| `GetDisplay` | `GetDisplay(instance)` | label/icon/color/rarity/weight for UI |
+
+### Instances
+
+| Export | Signature | Returns |
+|---|---|---|
+| `CreateInstance` | `CreateInstance(item_id, opts)` | `Result{ data = { instance } }` (mints a unique `instanceId`) |
+| `ValidateInstance` | `ValidateInstance(instance)` | `Result`, reject items whose def no longer exists or whose meta is illegal |
+| `CanStack` | `CanStack(a, b)` | `boolean` |
+| `StackMerge` | `StackMerge(into, from)` | merge stacks |
+| `Split` | `Split(instance, qty)` | split a stack |
+| `GetWeight` | `GetWeight(instance)` | total weight |
+| `ApplyDurability` | `ApplyDurability(instance, delta)` | durability math (nil max = indestructible) |
+
+### Definition shape
+
+```lua
+exports["forge-items"]:RegisterItem({
+  id = "item:iron_sword", type = "weapon", label = "Iron Sword",
+  stackSize = 1, weight = 1.5, rarity = "common",
+  tags = { "weapon", "melee" },
+  equipSlot = "slot:mainhand",   -- read by forge-equipment
+  maxDurability = 100,           -- optional; nil = indestructible
+  useable = false,
+  -- equip = { ... }, weapon = { ... }, use = { ... }  -- optional open blocks
+})
+```
+
+See [add an item](/guides/add-an-item) for the full walk, including equippable items.
+
+## Configuration
+
+Ships a small neutral starter set (bandage, bread, water, cloth, simple dagger, coin) in editable
+`shared/data/items.lua` (`ForgeItems.DefaultItems`), gated by `Config.ShipDefaults`. Rarities are
+creator-configurable in `Config.Rarities`.
+
+<Note>
+  `forge-items` depends on `forge-core` only. It has no `character_id` and no per-character state.
+  Everything above it in the stack depends on `forge-items`.
+</Note>

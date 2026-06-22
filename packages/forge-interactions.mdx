@@ -1,0 +1,61 @@
+---
+title: "forge-interactions"
+description: "World interactables: prompts, distance gating, cooldowns, and routing to a handler."
+---
+
+`forge-interactions` is the generic "press E on a thing" system. You register an interaction
+definition, place instances of it in the world, and the package handles the prompt, server-side
+distance gating, rate limiting, and routing the trigger to a handler in another package.
+
+## Concepts
+
+- **Definition.** A stable `interact:<name>` with a prompt, a max `distance`, and an `outcome` that
+  names a handler `{ pkg, export }` plus static `data`.
+- **Instance.** A placed occurrence with an `instance_id` and a world `position`.
+- **Trigger.** Calling `TriggerInteraction` checks distance server-side, then invokes the outcome
+  handler with the data and the caller's character id.
+
+## Exports
+
+| Export | Signature | Returns |
+|---|---|---|
+| `RegisterInteraction` | `RegisterInteraction(def)` | `Result` |
+| `RegisterInteractions` | `RegisterInteractions(list)` | `Result` |
+| `CreateInteraction` | `CreateInteraction(def_id, opts)` | `Result`, `opts` has `instance_id`, `position` |
+| `DestroyInteraction` | `DestroyInteraction(instance_id)` | `Result` |
+| `SetEnabled` | `SetEnabled(instance_id, enabled)` | `Result` |
+| `GetInteraction` | `GetInteraction(def_id)` | `Result` |
+| `ListInstances` | `ListInstances()` | `Result{ data = { instances } }` |
+| `TriggerInteraction` | `TriggerInteraction(character_id, instance_id, opts)` | runs the outcome (distance-gated; pass `from_position`) |
+| `ResetCooldown` | `ResetCooldown(instance_id)` | `Result` |
+
+### Definition + use
+
+```lua
+local fint = exports["forge-interactions"]
+
+fint:RegisterInteraction({
+  id = "interact:instructor",
+  prompt = "Talk to the Instructor",
+  distance = 250,
+  outcome = {
+    handler = { pkg = "forge-quests", export = "StartDialogue" },
+    data    = { dialogue = "dlg:instructor" },
+  },
+})
+
+fint:CreateInteraction("interact:instructor", {
+  instance_id = "inst:instructor:" .. cid,
+  position    = { x = px, y = py, z = pz },
+})
+```
+
+<Note>
+  The outcome handler is a `{ pkg, export }` reference, not a raw function, because HELIX serializes
+  export-call arguments and cannot marshal a function across states.
+</Note>
+
+## Configuration
+
+`forge-interactions` ships **no content**; interactions are creator-defined via `Config.Interactions`
+or the register exports. `Config` tunes the distance slack and per-second use cap.

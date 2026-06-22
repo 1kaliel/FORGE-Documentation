@@ -1,0 +1,69 @@
+---
+title: "forge-attributes"
+description: "Attribute definitions, base values, and stacked modifiers, resolved to a final value at read time."
+---
+
+`forge-attributes` owns a character's stats. An attribute has a **base value** plus any number of
+**modifiers** from other systems (equipment, effects, buffs). The final value is computed at read
+time, so callers always see the live total.
+
+## Concepts
+
+- **Definition.** A stable `attr:<name>` with a label, default, min, and max. Ships a generic
+  six-attribute set (STR/DEX/INT/CON/WIS/CHA).
+- **Base value.** The character's own stat, persisted.
+- **Modifier.** A contribution from a source, keyed by `source_id` so it can be removed exactly.
+  `op` is `add` (more ops may follow).
+- **Resolution.** `final = base + sum(add modifiers)`, clamped to the definition's range.
+
+## Exports
+
+| Export | Signature | Returns |
+|---|---|---|
+| `GetDefinitions` | `GetDefinitions()` | `Result{ data = { ... } }` |
+| `GetAttribute` | `GetAttribute(character_id, attribute_id)` | `Result` with `{ base, bonus, final, definition }` |
+| `GetAttributes` | `GetAttributes(character_id)` | `Result{ data = { attributes = { [id] = {...} } } }` |
+| `SetBaseValue` | `SetBaseValue(character_id, attribute_id, value)` | `Result` |
+| `AddModifier` | `AddModifier(character_id, attribute_id, modifier)` | `Result` |
+| `RemoveModifier` | `RemoveModifier(character_id, attribute_id, source_id)` | `Result` |
+| `GetModifiers` | `GetModifiers(character_id, attribute_id)` | `Result{ data = { modifiers } }` |
+| `ClearModifiers` | `ClearModifiers(character_id, attribute_id?)` | clears one attribute, or all if omitted |
+
+### Modifier shape
+
+```lua
+exports["forge-attributes"]:AddModifier(cid, "attr:strength", {
+  source_id   = "equip:" .. instanceId,  -- unique; how you remove it later
+  source_type = "equipment",
+  value       = 5,
+  op          = "add",
+})
+```
+
+<Warning>
+  Attribute modifiers use `attribute_id` when supplied through `forge-effects` definitions, but
+  `AddModifier` itself takes `attribute_id` as its second argument and a `modifier` table whose
+  field is `source_id`. Match the shapes above exactly.
+</Warning>
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `forge-attributes:server:baseValueChanged` | `{ character_id, attribute_id }` |
+| `forge-attributes:server:modifierAdded` | `{ character_id, attribute_id, source_id }` |
+| `forge-attributes:server:modifierRemoved` | `{ character_id, attribute_id, source_id }` |
+| `forge-attributes:server:modifiersCleared` | `{ character_id }` |
+
+Modifiers are cleared automatically when a character deactivates; their owning system re-applies
+them on the next activation.
+
+## Configuration
+
+The six default attributes live in editable `shared/data/attributes.lua`
+(`ForgeAttributes.DefaultAttributes`), gated by `Config.ShipDefaults`. Add or override by id via the
+data file or `Config.Attributes`.
+
+```lua
+{ id = "attr:strength", label = "Strength", default = 10, min = 0, max = 100 }
+```

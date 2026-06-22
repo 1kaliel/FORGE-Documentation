@@ -1,0 +1,102 @@
+---
+title: "forge-core"
+description: "The foundation: logging, the Result helper, database access, permissions, identity, save coordination, and the service registry."
+---
+
+`forge-core` loads first and underpins every other package. It owns the cross-cutting services the
+rest of FORGE builds on. You rarely call most of it directly from content, but you will use its
+logging, database, and identity helpers.
+
+## Exports
+
+### Lifecycle & meta
+
+| Export | Signature | Returns |
+|---|---|---|
+| `IsReady` | `IsReady()` | `boolean` |
+| `GetVersion` | `GetVersion()` | version string |
+| `RegisterService` | `RegisterService(name, version)` | registers a package in the health registry |
+| `GetHealth` | `GetHealth()` | `{ ok, services, ... }` |
+
+### Logging
+
+| Export | Signature |
+|---|---|
+| `Log` | `Log(level, resource, sub, message)`, `level` is `TRACE\|DEBUG\|INFO\|WARN\|ERROR\|FATAL` |
+| `SetLogLevel` | `SetLogLevel(level)` |
+
+```lua
+exports["forge-core"]:Log("INFO", "my-pkg", "bootstrap", "ready")
+```
+
+### Result & IDs
+
+| Export | Signature |
+|---|---|
+| `Result` | `Result(ok, code, data, message)`, build a standard Result table |
+| `MakeId` | `MakeId(namespace, name)`, validated stable id (`namespace:name`) |
+| `ValidateConfig` | `ValidateConfig(schema, config)`, declarative config validation |
+
+### Identity & permissions
+
+Identity is the **HELIX User ID**. A character is a separate concept owned by `forge-characters`.
+
+| Export | Signature | Returns |
+|---|---|---|
+| `GetUserId` | `GetUserId(controller)` | `Result{ data = { user_id } }` |
+| `GetController` | `GetController(user_id)` | the controller object, or `nil` (not a Result) |
+| `GetActiveUsers` | `GetActiveUsers()` | array of online `user_id` strings |
+| `HasPermission` | `HasPermission(user_id, permission)` | `Result` (`ok` when granted; permissive when the permissions feature is disabled) |
+| `GrantPermission` | `GrantPermission(user_id, permission)` | `Result` |
+| `RevokePermission` | `RevokePermission(user_id, permission)` | `Result` |
+
+<Note>
+  Default permission grants are empty. A fresh player has no permissions unless a `DefaultGroups`
+  entry, a `SuperAdmin` id, or a runtime `GrantPermission` (for example via `forge-admin` roles)
+  gives them one.
+</Note>
+
+### Database
+
+Backend-neutral SQL with parameter binding. Writes and reads both return a Result.
+
+| Export | Signature | Returns |
+|---|---|---|
+| `DbExecute` | `DbExecute(sql, params)` | `Result` |
+| `DbSelect` | `DbSelect(sql, params)` | `Result{ data = { rows } }` |
+| `DbTransaction` | `DbTransaction(statements)` | `Result`, runs `{ sql, params }` statements atomically |
+| `RegisterMigrations` | `RegisterMigrations(packageName, list)` | run a package's schema migrations at bootstrap |
+
+<Warning>
+  Never leave `nil` holes in a `params` array; HELIX silently fails on them. Put nullable columns
+  last, or pass empty strings.
+</Warning>
+
+### Save coordination
+
+Packages mark state dirty and let core coordinate the flush, rather than writing on every change.
+
+| Export | Signature |
+|---|---|
+| `MarkDirty` | `MarkDirty(resource, owner_id)` |
+| `ReportSaved` | `ReportSaved(resource, owner_id)`, respond to a `forge-core:server:flush` |
+
+## Events
+
+| Event | Payload | When |
+|---|---|---|
+| `forge-core:server:playerJoined` | `{ user_id, display_name, is_first_join }` | a player's user id resolved |
+| `forge-core:server:playerLeft` | `{ user_id }` | a player disconnected |
+| `forge-core:server:flush` | `{ owner_id, resources }` | the save coordinator asks dirty owners to persist |
+
+## Configuration
+
+`Features` toggles the cross-cutting subsystems; `Permissions` seeds grants.
+
+```lua
+Features = { Permissions = true, SaveCoordinator = true, PlayerLifecycle = true },
+Permissions = {
+  DefaultGroups = {},  -- permissions granted to every player on join
+  SuperAdmin    = {},  -- user_ids that bypass all permission checks
+},
+```

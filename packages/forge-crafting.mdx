@@ -1,0 +1,61 @@
+---
+title: "forge-crafting"
+description: "Recipes, recipe knowledge, stations, and a lossless crafting job loop."
+---
+
+`forge-crafting` is a pure orchestrator with zero storage of its own: recipes ride on progression
+unlocks, stations on interactions, materials and outputs on inventory, quality on loot, and XP on
+progression. It coordinates them into a crafting job.
+
+## Concepts
+
+- **Recipe.** A stable `recipe:<name>`: ingredients, an output, optional station, time, XP, and
+  requirements.
+- **Knowledge.** By default a character must **learn** a recipe (a refcounted progression unlock).
+  Set `requires.unlock = false` for common-knowledge recipes anyone can craft.
+- **Consume at completion.** Ingredients leave the bag only as each item completes, so cancelling,
+  disconnecting, or walking away mid-craft is lossless.
+
+## Exports
+
+### Registry & knowledge
+
+| Export | Signature |
+|---|---|
+| `RegisterRecipe` / `RegisterRecipes` | register definitions |
+| `GetRecipe` / `GetRecipes` | query definitions |
+| `LearnRecipe` | `LearnRecipe(character_id, recipe_id, source)` |
+| `UnlearnRecipe` | `UnlearnRecipe(character_id, recipe_id, source)` |
+| `GetKnownRecipes` | `GetKnownRecipes(character_id)` |
+
+### Crafting
+
+| Export | Signature | Returns |
+|---|---|---|
+| `CanCraft` | `CanCraft(character_id, recipe_id)` | `Result` |
+| `CraftRequest` | `CraftRequest(character_id, recipe_id, batch)` | starts a job |
+| `CancelCraft` | `CancelCraft(character_id)` | cancels (lossless) |
+| `GetJob` | `GetJob(character_id)` | `Result` |
+| `OpenStation` | `OpenStation(character_id, instance_id, opts)` | open a station context |
+
+### Recipe shape
+
+```lua
+exports["forge-crafting"]:RegisterRecipe({
+  id          = "recipe:bandage",
+  label       = "Bandage",
+  ingredients = { { item = "item:cloth", count = 2, consume = true } },
+  output      = { item = "item:bandage", qty = 1 },     -- or { table = "loot:..." }
+  craftTimeSec = 2,
+  xp          = { amount = 5 },
+  requires    = { unlock = false },   -- common knowledge
+})
+```
+
+See [add a recipe](/guides/add-a-recipe) for the full walk.
+
+## Configuration
+
+Ships one neutral default, `recipe:bandage`, in editable `shared/data/recipes.lua`
+(`ForgeCrafting.DefaultRecipes`), gated by `Config.ShipDefaults`. Rules (max batch, station reach,
+rate cap) live in `Config.Rules`.

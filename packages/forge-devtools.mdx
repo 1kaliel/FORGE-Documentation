@@ -1,0 +1,70 @@
+---
+title: "forge-devtools"
+description: "Dev-only iteration tooling: log control, an event tracer, state dumps, scenarios, and console commands. Disabled for distribution."
+---
+
+`forge-devtools` is your iteration toolkit while building on FORGE: see into live state, trace
+events, run scenarios, and capture world coordinates. It adds zero gameplay.
+
+<Warning>
+  `Config.Enabled` is `true` in the dev repo and should be `false` for distribution. When disabled,
+  the package registers itself for health but goes inert: no exports do work, and the gate rejects
+  every call. A WARN banner prints at boot while it is enabled.
+</Warning>
+
+## Console commands
+
+Console commands are client-side (registered on the HConsole actor). Type them in the in-game
+console.
+
+| Command | What it does |
+|---|---|
+| `dumpchar` | Dumps your character's attributes, active effects, equipment, progression, and more to the Output Log under `[forge-devtools][dump]`. |
+| `coords` | Captures your current world transform (position + aim) for placing content. `DumpCoords` prints a copy-paste Lua table. |
+
+<Tip>
+  `dumpchar` is the fastest way to confirm gameplay state, for example that eating bread applied
+  `effect:well_fed` and raised `attr:constitution`.
+</Tip>
+
+## Exports
+
+### Inspection
+
+| Export | Signature | Returns |
+|---|---|---|
+| `DumpCharacter` | `DumpCharacter(character_id)` | `Result` (also logs structured JSON) |
+| `DumpWorld` | `DumpWorld()` | `Result` with per-system counts |
+| `GetHealth` | `GetHealth()` | aggregated service health + memory + tracer counters |
+
+### Tracing & logging
+
+| Export | Signature |
+|---|---|
+| `TraceEvents` | `TraceEvents(nameOrGroup)`, log every firing of an event (or named group) |
+| `Untrace` | `Untrace(nameOrGroup)` |
+| `GetCounters` | `GetCounters()`, per-event firing counts |
+| `SetLogLevel` | `SetLogLevel(level)`, proxy to `forge-core:SetLogLevel` |
+
+### Scenarios & coords
+
+| Export | Signature |
+|---|---|
+| `RegisterScenario` / `RunScenario` / `ListScenarios` | scripted server-side setups (creator scenarios use `{ pkg, export }` handlers) |
+| `CaptureCoords` / `ListCoords` / `ClearCoords` / `DumpCoords` | the `coords` capture store |
+| `RunCommand` | `RunCommand(actor, line)`, the `/fdev` command entrypoint |
+
+## Gate
+
+Every command/console path runs through a permission gate (`Config.Permission`, default
+`dev.tools`). In the dev repo, devtools grants this permission to players on join while enabled, so
+the console commands work without manual setup. In distribution (disabled), none of this runs.
+
+## Configuration
+
+```lua
+Config = {
+  Enabled    = true,         -- set false for distribution
+  Permission = "dev.tools",  -- gate for the standalone command path
+}
+```

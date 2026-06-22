@@ -1,0 +1,56 @@
+---
+title: "forge-instancing"
+description: "Managed private instances over HELIX isolation: templates, membership, and crash-safe residue."
+---
+
+`forge-instancing` creates managed instances (a dungeon, a house, a private arena) on top of HELIX's
+world isolation. You register a template, create instances from it, and move characters in and out
+with access control.
+
+## Concepts
+
+- **Template.** A stable `instance:<name>` describing how to build an instance and where to send a
+  character on exit (a mandatory `exit.fallback`).
+- **Provider.** How isolation is achieved. `offset` (default, production-proven Z-stacking) or
+  `dimension` (gated until Studio-verified).
+- **Residue.** The only persisted state: if a character disconnects inside an instance, a residue row
+  lets them be healed back to the template's exit fallback on reconnect, so no one is ever stranded.
+
+## Exports
+
+### Templates & instances
+
+| Export | Signature |
+|---|---|
+| `RegisterTemplate` / `RegisterTemplates` | register definitions |
+| `CreateInstance` | `CreateInstance(template_id, opts)` |
+| `DestroyInstance` | `DestroyInstance(instance_id)` |
+| `GetInstance` / `ListInstances` | query |
+| `EjectAll` | `EjectAll(instance_id)` |
+
+### Membership & access
+
+| Export | Signature |
+|---|---|
+| `Enter` | `Enter(character_id, instance_id)` |
+| `Leave` | `Leave(character_id)` |
+| `Invite` / `AcceptInvite` | invite flow (TTL) |
+| `SetAccessList` | `SetAccessList(instance_id, list)`, `open\|invite\|list\|faction\|owner` |
+| `GetOrCreateOwned` | `GetOrCreateOwned(character_id, template_id)`, a per-owner instance |
+| `GetMembers` / `IsInside` | query membership |
+
+```lua
+local fi = exports["forge-instancing"]
+local inst = fi:GetOrCreateOwned(cid, "instance:player_house")
+fi:Enter(cid, inst.data.instance_id)
+```
+
+## Configuration
+
+`forge-instancing` ships **no content**; templates are creator-defined. The provider defaults to
+`offset`; `Config.Dimensions.Enabled` stays `false` until the dimension provider is Studio-verified.
+
+<Note>
+  v0.1 implements the full logic with unit coverage. Live in-world walk (a cooked interior shell
+  asset and example glue) and the dimension provider are deferred.
+</Note>

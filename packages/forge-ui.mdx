@@ -1,0 +1,64 @@
+---
+title: "forge-ui"
+description: "The client UI framework: WebUI views, an input-mode stack, notifications, the HUD mount, and theming."
+---
+
+`forge-ui` is the client-side UI layer every screen is built on. It manages WebUI views (HTML/CSS/JS
+pages), routes messages between Lua and the page, owns an input-mode stack so screens cooperate over
+mouse/keyboard capture, and provides toasts and a HUD mount.
+
+UI is client-side. You call these exports from your package's client scripts.
+
+## Views
+
+A view is a WebUI page you create, show, message, and destroy.
+
+| Export | Signature |
+|---|---|
+| `CreateView` | `CreateView(id, url, opts)` |
+| `DestroyView` | `DestroyView(id)` |
+| `ShowView` / `HideView` | `ShowView(id)` / `HideView(id)` |
+| `SetZ` / `BringToFront` | stacking order |
+| `Send` | `Send(id, channel, payload)`, Lua → page |
+| `Subscribe` / `Unsubscribe` | `Subscribe(id, channel, handler)`, page → Lua |
+| `Request` | `Request(id, channel, payload)`, request/response round-trip |
+
+<Warning>
+  `DestroyView` clears the view's bridge subscriptions. If you re-open a view without destroying the
+  old one, the `Subscribe` dedup guard skips re-registering its handlers and its buttons go dead on
+  the second open.
+</Warning>
+
+<Note>
+  Lua array-tables serialize to JS as objects (`{"1":...}`). In page JS, normalize with a
+  `toArray()` helper before calling `.forEach`.
+</Note>
+
+## Input modes
+
+Screens push an input mode while open and pop it when closed, so capture is well-behaved when
+several UIs overlap.
+
+| Export | Signature |
+|---|---|
+| `PushInputMode` / `PopInputMode` | manage the capture stack |
+| `IsCapturingInput` | `IsCapturingInput()` |
+
+## Notifications & HUD
+
+| Export | Signature |
+|---|---|
+| `Notify` | `Notify({ level, text, durationMs })`, a toast. `level` is `info\|success\|warn\|error` |
+| `Broadcast` | `Broadcast(notify)`, toast to all clients (server-callable) |
+| `MountHud` / `UnmountHud` | mount a persistent HUD overlay |
+| `GetTheme` / `SetTheme` | read or override theme tokens |
+
+```lua
+exports["forge-ui"]:Notify({ level = "success", text = "Quest complete!", durationMs = 3000 })
+```
+
+## Testing pattern
+
+UI logic that can be unit-tested lives in pure `shared/` modules (input stack, notify formatting,
+form-schema validation) and is covered by `forge-tests`; the WebUI rendering itself is verified in
+Play-In-Editor.

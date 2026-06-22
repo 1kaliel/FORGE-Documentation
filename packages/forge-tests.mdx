@@ -1,0 +1,65 @@
+---
+title: "forge-tests"
+description: "The in-editor test runner and assertion library every FORGE package uses."
+---
+
+`forge-tests` runs FORGE's unit suites inside Play-In-Editor. There is no external CLI runner. On
+boot, every package's `*_tests.lua` registers its suites and `forge-tests` runs them, printing a
+pass/fail summary to the Output Log.
+
+You use this package when writing tests for your own content.
+
+## Writing a suite
+
+Each package builds a test object and registers suites and cases on it. The harness handles
+`beforeAll`/`beforeEach`/`afterAll` and a set of assertions.
+
+```lua
+local T = ForgeTest.new("my-content")
+
+T.suite("crafting", function()
+  T.beforeAll(function() --[[ setup ]] end)
+
+  T.test("registers the recipe", function()
+    local r = exports["forge-crafting"]:GetRecipe("recipe:health_tonic")
+    T.assert.ok(r)                       -- r.ok == true
+    T.assert.equal(r.data.recipe.id, "recipe:health_tonic")
+  end)
+end)
+```
+
+### Assertions
+
+| Assertion | Checks |
+|---|---|
+| `T.assert.ok(r)` | `r.ok == true` |
+| `T.assert.fail(r)` | `r.ok == false` |
+| `T.assert.code(r, code)` | `r.code == code` |
+| `T.assert.equal(a, b, msg)` | `a == b` |
+| `T.assert.notEqual(a, b, msg)` | `a ~= b` |
+| `T.assert.truthy(v, msg)` / `T.assert.falsy(v, msg)` | truthiness |
+
+## Exports
+
+| Export | Signature |
+|---|---|
+| `IsReady` | `IsReady()` |
+| `RegisterSuite` | `RegisterSuite(...)`, called by the harness, not usually by hand |
+| `RunAll` | `RunAll()` |
+| `RunPackage` | `RunPackage(name)` |
+| `RunTag` | `RunTag(tag)` |
+| `Report` / `GetReport` | aggregate the last run's results |
+
+<Warning>
+  FORGE's database persists across PIE runs. Tests that write rows must use **run-unique ids** (an
+  `os.time()` prefix) or delete per-id in setup, or a stale row from a prior run fails the rerun.
+</Warning>
+
+## How to read a run
+
+A green boot logs:
+
+```
+[FORGE-SMOKE] DONE 153 passed, 0 failed
+[FORGE-TEST]  DONE run=run_1 pass=625 fail=0 skipped=0
+```

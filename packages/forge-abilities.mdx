@@ -1,0 +1,69 @@
+---
+title: "forge-abilities"
+description: "Ability definitions, the hotbar, cooldowns, mana, casting, and projectile resolution."
+---
+
+`forge-abilities` owns what a character can cast. It holds ability definitions, per-character learned
+sets and hotbars, mana and cooldowns, and the cast pipeline, including a server-authoritative
+projectile resolution handshake.
+
+## Concepts
+
+- **Definition.** A stable `ability:<name>` with a cast type, cost, cooldown, requirements, and
+  payloads (for example damage).
+- **Learned + hotbar.** A character learns abilities and binds them to hotbar slots.
+- **Cast cue.** Casting fires a cue event; for projectile abilities the content spawns the visual and
+  reports the hit back with `ReportProjectileHit`/`ReportProjectileMiss`, keeping the server
+  authoritative over the outcome.
+
+## Exports
+
+### Registry & query
+
+| Export | Signature | Returns |
+|---|---|---|
+| `RegisterAbility` / `RegisterAbilities` | register definitions |
+| `GetDefinition` | `GetDefinition(id)` | `Result{ data = { definition } }` (label, cooldownSec, payloads under `.definition`) |
+| `GetDefinitions` | `GetDefinitions()` | `Result` |
+
+### Cast, mana, cooldowns
+
+| Export | Signature |
+|---|---|
+| `Cast` | `Cast(character_id, ability_id)` |
+| `CancelCast` | `CancelCast(character_id)` |
+| `GetCastState` | `GetCastState(character_id)` |
+| `GetMana` / `SetMana` | `GetMana(cid)` → `{ current, max }` |
+| `GetCooldowns` / `ClearCooldowns` | per-ability remaining cooldowns |
+
+### Learning & hotbar
+
+| Export | Signature | Returns |
+|---|---|---|
+| `LearnAbility` / `UnlearnAbility` | `LearnAbility(cid, ability_id, source)` |
+| `GetLearned` | `GetLearned(character_id)` | learned set |
+| `SetHotbarSlot` | `SetHotbarSlot(cid, slot, ability_id)` |
+| `GetHotbar` | `GetHotbar(cid)` | `Result{ data = { slots = { [n] = abilityId } } }` |
+| `ReportProjectileHit` / `ReportProjectileMiss` | `ReportProjectileHit(token, { character_id })`, resolve a cast |
+
+### Definition shape
+
+```lua
+exports["forge-abilities"]:RegisterAbility({
+  id = "ability:firebolt", label = "Firebolt", castType = "projectile",
+  cost = { mana = 20 }, cooldownSec = 1.0,
+  requires = { equippedTag = "focus.wand" },
+  payloads = { { kind = "damage", amount = 25 } },
+})
+```
+
+## Events
+
+| Event | Payload | When |
+|---|---|---|
+| `forge-abilities:server:cue` | `{ character_id, phase, token, ability_id }` | a cast reached a phase (for example `projectile`); content spawns the visual and reports the hit |
+
+## Configuration
+
+`forge-abilities` ships **no content**; abilities are creator-defined. Mana defaults and cast rules
+live in `Config`.
