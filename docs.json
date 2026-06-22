@@ -1,11 +1,14 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "maple",
   "name": "FORGE",
   "colors": {
     "primary": "#D9480F",
     "light": "#FF922B",
     "dark": "#9A3412"
+  },
+  "background": {
+    "decoration": "gradient"
   },
   "favicon": "/favicon.svg",
   "navigation": {
