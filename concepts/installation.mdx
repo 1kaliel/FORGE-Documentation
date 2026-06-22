@@ -1,0 +1,72 @@
+---
+title: "Installation & layout"
+description: "How FORGE packages are laid out, loaded, and ordered in a HELIX project."
+---
+
+## Folder layout
+
+FORGE is a set of packages under your HELIX `Scripts/` directory. Framework packages sit **flat**:
+
+```
+Scripts/
+  config.json            # package list + load order
+  forge-core/
+  forge-items/
+  forge-inventory/
+  ...                    # one folder per framework package
+  forge-examples/
+    forge-example-content/   # the themed showcase (a creator example)
+```
+
+<Warning>
+  **Provider packages must stay flat at `Scripts/<pkg>/`.** HELIX ties a package's export identity to
+  its path in `config.json`. Nesting a provider (for example `forge/forge-core`) re-keys its exports,
+  so every `exports["forge-core"]:...` lookup fails and the whole stack cascades. Only a **pure
+  consumer** that exposes no exports, like `forge-example-content`, can be nested under
+  `forge-examples/`.
+</Warning>
+
+This layout is also the ship story: delete `Scripts/forge-examples/` and you have the pure framework.
+
+## `config.json`
+
+`config.json` lists every package and the order they load. The rules:
+
+- **`forge-core` loads first.** It provides logging, the Result helper, the database, permissions,
+  and save coordination that every other package depends on.
+- **Dependencies load before dependents** where practical, but exports register in a later pass,
+  so packages still gate on `IsReady()` rather than assuming load order (see
+  [Architecture](/concepts/architecture)).
+- **The example content loads last**, as a nested path (`forge-examples/forge-example-content`).
+
+## Booting
+
+FORGE has no CLI test runner, it runs inside Play-In-Editor. On boot:
+
+<Steps>
+  <Step title="Packages load and register">
+    Each package loads its files, then registers its exports and lifecycle handlers.
+  </Step>
+  <Step title="Tests run">
+    `main` runs the smoke harness and `forge-tests` runs the unit suites automatically.
+  </Step>
+  <Step title="You read the Output Log">
+    Green is `[FORGE-SMOKE] DONE 153 passed, 0 failed` and `[FORGE-TEST] DONE ... pass=625 fail=0`.
+  </Step>
+</Steps>
+
+## Per-package config
+
+Every configurable package exposes one `shared/config.lua` with a standard shape:
+
+```lua
+local Config = {
+    SchemaVersion = 1,    -- REQUIRED; startup-fatal if missing or mismatched
+    Enabled       = true, -- package kill switch
+    Debug         = false,
+    -- domain-specific sections + (for content packages) ShipDefaults
+}
+```
+
+Config tunes behavior; it does **not** define content. See the
+[content model](/concepts/content-model) for `ShipDefaults` and `shared/data/*.lua`.

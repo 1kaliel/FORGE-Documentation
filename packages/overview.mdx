@@ -1,0 +1,64 @@
+---
+title: "Packages overview"
+description: "The FORGE packages, grouped by layer, and what each one owns."
+---
+
+FORGE is 21 packages. Each owns one domain and exposes its capability through exports and events.
+This page is the map; per-package reference pages cover each one's API in detail.
+
+## Foundation
+
+| Package | Owns |
+|---|---|
+| `forge-core` | Logging, the Result helper, database access, permissions, identity, save coordination, the service registry. Loads first; everything depends on it. |
+| `forge-tests` | The in-editor test runner and assertion library. |
+| `forge-ui` | The client UI framework, WebUI views, the input-mode stack, notifications, the HUD mount. |
+| `forge-devtools` | Dev-only tooling: log control, event tracer, state dumps (`dumpchar`), scenarios, the `coords` console command. Disabled for distribution. |
+
+## Character
+
+| Package | Owns |
+|---|---|
+| `forge-characters` | Character identity, multi-character rosters, creation, appearance, activation, staging. |
+| `forge-attributes` | Attribute definitions, base values, and stacked modifiers (computed at read time). |
+| `forge-progression` | Levels, an XP curve, attribute points, and refcounted unlocks. |
+| `forge-effects` | Timed/permanent status effects that push attribute modifiers and tags while active. |
+
+## Items & world
+
+| Package | Owns |
+|---|---|
+| `forge-items` | The item catalog (immutable definitions) and instance toolkit. The shared vocabulary every item system speaks. |
+| `forge-inventory` | Containers: the player bag, world drops, named stashes. Add/move/merge/split/swap, weight and slot caps. |
+| `forge-equipment` | Worn/wielded items as an equip container: slots, fit rules, and equip consequences (modifiers + granted effects). |
+| `forge-loot` | Loot tables, rolling, and delivery (grant to a holder or spill to a drop). |
+| `forge-crafting` | Recipes, known-recipe knowledge, stations, and the crafting job loop. |
+| `forge-economy` | Audited wallets, currencies, shops, proximity pay, and trade. |
+| `forge-interactions` | World interactables: prompts, distance gating, cooldowns, routing to a handler. |
+| `forge-instancing` | Managed private instances over HELIX's isolation (offset Z-stacking or dimensions). |
+
+## Gameplay
+
+| Package | Owns |
+|---|---|
+| `forge-combat` | FORGE-authoritative HP, damage with a validator chain, death, heal, revive, archetypes. |
+| `forge-abilities` | Ability definitions, the hotbar, cooldowns, mana, casting, and projectile resolution. |
+| `forge-quests` | Quest registry, progress state machine, event-driven objectives, rewards, and dialogue. |
+| `forge-factions` | Membership (ranks, perms), reputation tiers, points/leaderboards, and a friendly-fire validator. |
+| `forge-admin` | An audited, permission-gated GM surface that wraps owning-package exports. Adds zero gameplay. |
+
+## Example content
+
+`forge-examples/forge-example-content` is not a framework package, it's the reference **themed
+showcase** (a magic-academy slice) that demonstrates how a creator builds on FORGE. Delete it and the
+framework still boots. See the [fork model](/concepts/fork-model).
+
+## How they depend on each other
+
+Dependencies flow upward: foundation → character/items → gameplay. A package only ever reaches
+another through exports and events, and gates on the dependency's `IsReady()` before calling it.
+Nothing depends on the example content.
+
+<Card title="Build something" icon="hammer" href="/guides/add-an-item">
+  The guides walk through registering content against these packages.
+</Card>

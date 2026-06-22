@@ -1,0 +1,86 @@
+---
+title: "Add an item"
+description: "Register an item definition with forge-items and grant it to a character."
+---
+
+Items are **definitions** (immutable, shared) plus **instances** (the actual stack a character
+holds). You register a definition once; you mint instances at runtime.
+
+## Register a definition
+
+Call `forge-items:RegisterItem` from your content package at bootstrap, after `forge-items` is ready.
+
+```lua
+local fi = exports["forge-items"]
+
+fi:RegisterItem({
+  id        = "item:health_tonic",   -- stable, namespaced id
+  type      = "consumable",
+  label     = "Health Tonic",
+  stackSize = 10,
+  weight    = 0.2,
+  rarity    = "common",
+  tags      = { "drink" },
+
+  -- optional: make it useable (consumed by forge-inventory's UseItem flow)
+  useable = true,
+  use     = { consume = true, cooldownSec = 1, outcome = { kind = "heal", amount = 25 } },
+})
+```
+
+<Note>
+  Definitions are **open tables**. Consumer packages read their own optional blocks, `equip` for
+  forge-equipment, `weapon` for the combat/cast glue, `use` for the consumable flow, and
+  forge-items rides unknown blocks along untouched.
+</Note>
+
+### Common fields
+
+| Field | Notes |
+|---|---|
+| `id` | Required. `item:<name>`. |
+| `type` | Required. Creator-defined string (`weapon`, `consumable`, `material`, …). |
+| `label`, `weight`, `rarity` | Display + inventory math. `rarity` must resolve to a registered rarity. |
+| `stackSize` | Max per stack (default 1). |
+| `tags` | Free-form strings; other systems match on them (e.g. `focus.wand`, `equip.mainhand`). |
+| `equipSlot` / `equip` | Read by forge-equipment. See [equip consequences](#equippable-items). |
+| `useable` / `use` | Read by forge-inventory's UseItem flow. |
+
+## Grant it to a character
+
+Mint an instance, then add it to the character's bag container (`inv:<character_id>`):
+
+```lua
+local fi = exports["forge-items"]
+local fv = exports["forge-inventory"]
+
+local instR = fi:CreateInstance("item:health_tonic", { quantity = 3 })
+if instR.ok then
+  fv:AddItem("inv:" .. characterId, instR.data.instance)
+end
+```
+
+## Equippable items
+
+To make an item apply stats while worn, add an `equip` block, forge-equipment applies the
+modifiers as long as the item occupies an equip slot, and removes them on unequip:
+
+```lua
+fi:RegisterItem({
+  id = "item:iron_ring", type = "misc", label = "Iron Ring",
+  stackSize = 1, weight = 0.1, rarity = "common",
+  equipSlot = "slot:ring1",
+  equip = {
+    modifiers   = { { attribute = "attr:strength", value = 2, op = "add" } },
+    grantEffect = "effect:well_fed",   -- optional: apply an effect while equipped
+  },
+})
+```
+
+<Tip>
+  Ship your own neutral default items by adding them to `forge-items`' `shared/data/items.lua` and
+  keeping `ShipDefaults = true`, same registration path, just framework-owned. See the
+  [content model](/concepts/content-model).
+</Tip>
+
+<Card title="Next: add an effect" icon="sparkles" href="/guides/add-an-effect" />

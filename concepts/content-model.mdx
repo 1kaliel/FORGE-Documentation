@@ -1,0 +1,79 @@
+---
+title: "Content model"
+description: "FORGE ships content in two tiers: neutral framework defaults you can keep or remove, plus your own themed content."
+---
+
+FORGE separates **mechanism** from **content**. The packages provide the mechanisms (an inventory,
+an effect engine, a crafting system); content is the data those mechanisms operate on (a specific
+item, a specific buff, a specific recipe). Content lives in two tiers.
+
+## Tier 1: framework neutral defaults
+
+Each content-bearing package ships a **small, generic, recognizable** default set so a fresh fork is
+playable out of the box, with no theme attached. These defaults live in editable `shared/data/*.lua`
+files (plain data, no code), the same ergonomic as QBCore's `shared/items.lua`.
+
+| Package | Ships |
+|---|---|
+| `forge-attributes` | 6 generic attributes (STR/DEX/INT/CON/WIS/CHA) |
+| `forge-items` | starter items: bandage, bread, water, cloth, simple dagger, coin |
+| `forge-equipment` | 12 paper-doll slots |
+| `forge-effects` | `effect:well_fed` (timed +2 Constitution) |
+| `forge-crafting` | `recipe:bandage` (2× cloth → bandage) |
+| `forge-economy` | `coin` currency + 100 starting balance |
+
+The remaining packages (`forge-abilities`, `forge-loot`, `forge-interactions`, `forge-factions`,
+`forge-quests`, `forge-instancing`, plus `forge-combat` and `forge-progression`) are
+**mechanism-only**: they ship no content, because a neutral baseline needs no default abilities,
+factions, or quests, and shipping any would impose a theme.
+
+### The `ShipDefaults` switch
+
+Every tier-1 package has a `Config.ShipDefaults` flag (default `true`):
+
+<CodeGroup>
+```lua Keep defaults (default)
+-- shared/config.lua
+ShipDefaults = true,   -- the shipped neutral set registers
+```
+
+```lua Blank slate
+ShipDefaults = false,  -- ship nothing; only your own content registers
+```
+</CodeGroup>
+
+At bootstrap each package merges its shipped defaults into its config list, gated by this flag:
+
+- **`true`**: shipped defaults register, merged *under* any creator entries. A creator entry with
+  the **same id wins** (overrides the shipped one).
+- **`false`**: only creator content registers. This is the blank-slate / distribution path.
+
+You can also just trim the `shared/data/*.lua` file to drop individual defaults while keeping others.
+
+## Tier 2: your themed content
+
+Your content is registered through each package's public API (`RegisterItem`, `RegisterAbility`,
+`RegisterRecipe`, …) or its config list, never hand-authored into the runtime config table.
+
+The reference example, `forge-examples/forge-example-content`, is exactly this: a themed
+magic-academy slice (an apprentice wand, a firebolt, an instructor with a lesson quest) layered on
+top of the neutral baseline. It registers **only** themed content and demonstrates the boot ordering
+a creator package should follow.
+
+<Note>
+  Tier-1 defaults and tier-2 content register through the **same** APIs. The `shared/data/*.lua`
+  files are simply the framework's own editable default set, there's no special "defaults" code path.
+</Note>
+
+## Removability
+
+Two independent removability guarantees:
+
+- **Drop the example**, delete `Scripts/forge-examples/` and the framework still boots clean on the
+  neutral baseline. Nothing exports *to* the example, so there is no dependency cascade.
+- **Drop the defaults**, set `ShipDefaults = false` (or trim the data files) and the framework boots
+  with empty registries, ready for your content.
+
+<Card title="Next: the fork model" icon="code-branch" href="/concepts/fork-model">
+  How to turn this into your own server.
+</Card>

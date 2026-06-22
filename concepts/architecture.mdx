@@ -1,0 +1,132 @@
+---
+title: "Architecture"
+description: "Isolated packages, exports, events, and the Result contract that hold FORGE together."
+---
+
+FORGE is a stack of small packages. Each is isolated, owns one domain, and talks to the others
+through two narrow channels. Understanding those channels is most of understanding FORGE.
+
+## Isolated packages
+
+Every FORGE package runs in its own HELIX `lua_State`. There are **no shared globals** across
+packages, `forge-items` cannot read a variable set by `forge-combat`. This keeps packages
+independent and removable, but it means all cross-package communication is explicit.
+
+There are exactly two ways packages interact:
+
+<CardGroup cols={2}>
+  <Card title="Exports" icon="right-left">
+    Direct function calls. Synchronous, return a value. Use for queries and commands.
+  </Card>
+  <Card title="Events" icon="tower-broadcast">
+    Fire-and-forget broadcasts. Use to announce that something happened.
+  </Card>
+</CardGroup>
+
+## Exports
+
+A package exposes functions by registering them, then others call them by package name.
+
+```lua
+-- Register (in the providing package, at bootstrap)
+exports("forge-economy", "GetBalance", function(owner, currency) ... end)
+
+-- Call (from any other package)
+local r = exports["forge-economy"]:GetBalance(characterId, "coin")
+```
+
+<Warning>
+  HELIX strips the first argument as `self` on a colon call. Use the colon form
+  `exports["pkg"]:Method(a, b)` for normal calls. For a **dynamic** call where the method name is in
+  a variable, capture the proxy first: `local p = exports[pkg]; p[fn](p, a, b)`, otherwise the first
+  real argument is silently dropped.
+</Warning>
+
+Packages register their exports in a pass *after* they load, so a consumer must wait for a
+dependency to be ready before calling it. Gate on the dependency's own `IsReady()`, not just
+`forge-core`:
+
+```lua
+local function depReady(name)
+  local ok, p = pcall(function() return exports[name] end)
+  return ok and p and p:IsReady() and true or false
+end
+```
+
+## Events
+
+Events announce facts. The server-local bus is the common case:
+
+```lua
+-- Fire (server -> server, cross-package)
+TriggerLocalServerEvent("forge-combat:server:died", { character_id = cid, source = killer })
+
+-- Subscribe
+RegisterServerEvent("forge-combat:server:died", function(payload) ... end)
+```
+
+Client and server cross the network with controller-addressed events:
+
+```lua
+-- Client -> server (controller injected as the first handler arg)
+TriggerServerEvent("my:event", payload)
+RegisterServerEvent("my:event", function(controller, payload) ... end)
+
+-- Server -> client (controller FIRST)
+TriggerClientEvent(controller, "my:event", payload)
+```
+
+<Warning>
+  `TriggerClientEvent` takes the **controller first**, then the event name, then the payload.
+  Reversing name and controller silently fails to reach the client. And register **one handler per
+  event name per state**, a second `RegisterServerEvent` for the same name replaces the first.
+</Warning>
+
+## The Result contract
+
+Every export that can fail returns a **Result** table, never a bare value or a raw error:
+
+```lua
+{ ok = true,  code = "ok",                 data = { ... } }
+{ ok = false, code = "inventory:bag_full", message = "optional human text" }
+```
+
+Callers branch on `r.ok` and read `r.data` on success or `r.code` on failure. Codes are stable,
+namespaced strings (`namespace:reason`). A handful of read-only helpers return plain booleans by
+design (for example `forge-equipment:HasEquippedTag`), those are documented per package.
+
+## Stable IDs
+
+Content is addressed by stable, namespaced ids: `item:bandage`, `effect:well_fed`,
+`attr:strength`, `recipe:bandage`, `coin`. Ids are the contract between packages, a quest can
+reward `item:bandage` without knowing anything else about it.
+
+## Persistence
+
+Packages don't write to the database ad hoc. They mark state dirty and let `forge-core` coordinate
+saves (`MarkDirty` → flush → `ReportSaved`). Money is the deliberate exception: `forge-economy`
+writes wallet changes through immediately in a single transaction, because dupe forensics need an
+authoritative ledger.
+
+## Putting it together
+
+A typical interaction, a player kills a training dummy, flows entirely through these channels:
+
+<Steps>
+  <Step title="Combat resolves the hit">
+    `forge-combat` applies damage, the target reaches 0 HP, and it fires
+    `forge-combat:server:died`.
+  </Step>
+  <Step title="Content reacts">
+    The creator's content package subscribed to that event. It calls
+    `exports["forge-loot"]:Grant(...)` and `exports["forge-progression"]:GainXP(...)`.
+  </Step>
+  <Step title="Each package owns its result">
+    Loot lands in the killer's inventory; XP may trigger a level-up event of its own. No package
+    reached into another's state, only exports and events crossed the boundary.
+  </Step>
+</Steps>
+
+<Card title="Next: the content model" icon="layer-group" href="/concepts/content-model">
+  How FORGE ships neutral defaults you can keep, edit, or remove.
+</Card>

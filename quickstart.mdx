@@ -1,47 +1,82 @@
 ---
 title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+description: "Fork FORGE, boot it in HELIX, and walk the neutral baseline loop."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+This guide gets FORGE running and walks you through the neutral baseline so you can confirm the
+framework works before you start building your own server.
 
 ## Prerequisites
 
-Before you begin, you must have:
+- A HELIX project (Unreal Engine) with UnLua enabled.
+- The FORGE framework, clone or fork [FORGE-FRAMEWORK](https://github.com/1kaliel/FORGE-FRAMEWORK).
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+## Install
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
-
-    ```bash
-    npm install your-package
-    ```
+  <Step title="Drop FORGE into your Scripts folder">
+    The repository root **is** your `Scripts/` directory. Place the packages so HELIX loads them from
+    `Scripts/forge-core`, `Scripts/forge-items`, and so on.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
-
-    ```bash
-    your-cli init
-    ```
+  <Step title="Confirm the package list">
+    `config.json` registers every package and its load order. `forge-core` must load first; the
+    example content (`forge-examples/forge-example-content`) loads last.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+  <Step title="Enter Play-In-Editor">
+    On boot, `forge-core` initializes, every package registers its exports, and the test suites run.
+    Read the Output Log.
+  </Step>
+</Steps>
 
-    ```bash
-    your-cli start
-    ```
+<Check>
+  A healthy boot logs `... ready` for each package, `[FORGE-SMOKE] DONE 153 passed, 0 failed`, and
+  `[FORGE-TEST] DONE ... pass=625 fail=0`.
+</Check>
+
+## Walk the neutral baseline
+
+With no themed content, a fresh character can already exercise the core loop. (The example content
+ships dev keybinds, `G` to grant starter items, `I` to open the inventory, to make this quick.)
+
+<Steps>
+  <Step title="Create a character">
+    The character-select screen lets you create a character with a structured name and identity
+    fields, then spawn in.
+  </Step>
+  <Step title="Get starter items">
+    The shipped neutral items include a bandage, bread, water, cloth, a simple dagger, and a coin.
+    A new character also starts with **100 coin** (`forge-economy` starting balance).
+  </Step>
+  <Step title="Craft a bandage">
+    `recipe:bandage` is common knowledge, turn 2× cloth into a bandage with no station required.
+  </Step>
+  <Step title="Eat bread → get a buff">
+    Using bread applies `effect:well_fed`: a timed `+2 Constitution` buff.
+  </Step>
+  <Step title="Equip an item → stats change">
+    Equipping an item with an `equip.modifiers` block applies its attribute modifiers; unequipping
+    reverts them.
   </Step>
 </Steps>
 
 <Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
-
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+  Type `dumpchar` in the in-game console (dev tooling) to print your character's live attributes,
+  active effects, equipment, and progression to the Output Log, handy for confirming a buff applied.
 </Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Understand the architecture" icon="diagram-project" href="/concepts/architecture">
+    How packages talk to each other.
+  </Card>
+  <Card title="Learn the content model" icon="layer-group" href="/concepts/content-model">
+    Keep, edit, or switch off the neutral defaults.
+  </Card>
+  <Card title="Make it your own" icon="hammer" href="/concepts/fork-model">
+    The fork workflow for building your server.
+  </Card>
+  <Card title="Add your first item" icon="plus" href="/guides/add-an-item">
+    Register content through the public API.
+  </Card>
+</CardGroup>

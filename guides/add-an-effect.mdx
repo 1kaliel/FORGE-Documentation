@@ -1,0 +1,72 @@
+---
+title: "Add an effect"
+description: "Register a timed status effect that buffs attributes, and apply it to a character."
+---
+
+An effect is a timed (or permanent) status that pushes **attribute modifiers** and **tags** onto a
+character while it's active, and cleanly removes them when it expires or is removed.
+
+## Register a definition
+
+```lua
+local fe = exports["forge-effects"]
+
+fe:RegisterEffect({
+  id           = "effect:rested",
+  label        = "Rested",
+  duration_sec = 300,          -- omit for a permanent effect
+  stack_rule   = "replace",    -- "replace" refreshes the timer; "stack" stacks up to max_stacks
+  tags         = { "buff" },
+  modifiers    = {
+    { attribute_id = "attr:wisdom", value = 3, op = "add" },
+  },
+})
+```
+
+### Fields
+
+| Field | Notes |
+|---|---|
+| `id` | Required. `effect:<name>`. |
+| `label` | Required. Display name. |
+| `duration_sec` | Timed effect length in seconds. Omit for permanent. |
+| `stack_rule` | `"replace"` (default) or `"stack"`. |
+| `max_stacks` | Cap for `stack_rule = "stack"`. |
+| `tags` | Free-form; used by `RemoveEffectsByTag` and matching. |
+| `modifiers` | List of `{ attribute_id, value, op }`. Pushed to forge-attributes while active. |
+
+<Warning>
+  Effect modifiers use **`attribute_id`** (not `attribute`). The equip block on items uses
+  `attribute`, a small naming difference between the two systems.
+</Warning>
+
+## Apply it
+
+```lua
+local fe = exports["forge-effects"]
+fe:ApplyEffect(characterId, "effect:rested", { source_id = "campfire" })
+```
+
+The `source_id` lets you remove everything from one source later with
+`fe:RemoveEffectsBySource(characterId, "campfire")`. While the effect is active, the character's
+`attr:wisdom` reads +3 (computed at read time by forge-attributes); when it expires, the modifier
+is removed automatically.
+
+## Grant it from an item
+
+A consumable can apply an effect on use, set its `use.outcome` to the effect kind:
+
+```lua
+exports["forge-items"]:RegisterItem({
+  id = "item:trail_rations", type = "consumable", label = "Trail Rations",
+  stackSize = 10, weight = 0.2, rarity = "common", useable = true,
+  use = { consume = true, cooldownSec = 1, outcome = { kind = "effect", effect_id = "effect:rested" } },
+})
+```
+
+<Tip>
+  The shipped `effect:well_fed` (granted by eating bread) is exactly this pattern. To ship your own
+  neutral default effect, add it to `forge-effects`' `shared/data/effects.lua`.
+</Tip>
+
+<Card title="Next: add a recipe" icon="hammer" href="/guides/add-a-recipe" />

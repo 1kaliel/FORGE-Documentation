@@ -1,0 +1,68 @@
+---
+title: "Fork model"
+description: "How to turn FORGE into your own server: keep the framework, replace the content."
+---
+
+FORGE is meant to be **forked**. You keep the framework packages, tune them through config, and put
+your world in your own content package. You rarely edit framework internals, and when you do, you're
+forking, so it's yours to change.
+
+## The workflow
+
+<Steps>
+  <Step title="Fork the framework">
+    Start from [FORGE-FRAMEWORK](https://github.com/1kaliel/FORGE-FRAMEWORK). The packages under
+    `Scripts/` are now yours.
+  </Step>
+  <Step title="Decide on the neutral defaults">
+    Keep them while prototyping, edit the `shared/data/*.lua` files to taste, or set
+    `ShipDefaults = false` per package to start blank. See the [content model](/concepts/content-model).
+  </Step>
+  <Step title="Create your content package">
+    Add a package (a good pattern: `Scripts/forge-examples/<your-server>` while prototyping, or a
+    flat package for a real server) that registers your items, abilities, quests, and world through
+    the framework's public APIs.
+  </Step>
+  <Step title="Tune the framework via config">
+    Adjust `Config` in the packages you use (XP curve, HP defaults, container caps, currency caps) without touching framework logic.
+  </Step>
+  <Step title="Remove what you don't need">
+    Disable a package in `config.json` (or its `Config.Enabled`) if your server doesn't use it.
+  </Step>
+</Steps>
+
+## What goes where
+
+<CardGroup cols={2}>
+  <Card title="Framework packages" icon="cube">
+    Mechanisms. Fork and tune via config; edit internals only if you must.
+  </Card>
+  <Card title="`shared/data/*.lua`" icon="pen">
+    The framework's editable neutral defaults. Trim or reskin in place.
+  </Card>
+  <Card title="Your content package" icon="wand-magic-sparkles">
+    Your world, registered through public APIs. This is where most of your work lives.
+  </Card>
+  <Card title="`config.json` + `Config`" icon="sliders">
+    Which packages load, in what order, tuned how.
+  </Card>
+</CardGroup>
+
+## Reference: the example content
+
+`forge-examples/forge-example-content` is a complete worked example of a tier-2 content package, a
+magic-academy slice (wand, firebolt, an instructor who gives a lesson quest, training dummies, a
+player HUD). Read it as the canonical "how a creator builds on FORGE," then replace it with your own.
+
+<Tip>
+  Keep your content in its own package rather than editing framework packages. It makes pulling
+  framework updates into your fork far easier, and keeps the removability guarantees intact.
+</Tip>
+
+## Learn by doing
+
+<CardGroup cols={3}>
+  <Card title="Add an item" icon="box" href="/guides/add-an-item" />
+  <Card title="Add an effect" icon="sparkles" href="/guides/add-an-effect" />
+  <Card title="Add a recipe" icon="hammer" href="/guides/add-a-recipe" />
+</CardGroup>

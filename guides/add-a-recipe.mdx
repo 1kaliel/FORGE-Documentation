@@ -1,0 +1,66 @@
+---
+title: "Add a recipe"
+description: "Register a crafting recipe that turns ingredients into an item."
+---
+
+A recipe turns ingredients (consumed from the bag) into an output item. forge-crafting orchestrates
+the job; the items come from forge-items and live in forge-inventory.
+
+## Register a definition
+
+```lua
+local fc = exports["forge-crafting"]
+
+fc:RegisterRecipe({
+  id          = "recipe:health_tonic",
+  label       = "Health Tonic",
+  ingredients = {
+    { item = "item:kingsfoil", count = 2, consume = true },
+    { item = "item:water",     count = 1, consume = true },
+  },
+  output       = { item = "item:health_tonic", qty = 1 },
+  craftTimeSec = 3,
+  xp           = { amount = 5 },        -- optional: GainXP on completion
+  requires     = { unlock = false },    -- common knowledge: craftable without learning
+})
+```
+
+### Fields
+
+| Field | Notes |
+|---|---|
+| `id` | Required. `recipe:<name>`. |
+| `ingredients` | List of `{ item, count, consume? }`. Consumed at completion. |
+| `output` | Either `{ item, qty }` or `{ table }` (a loot table for variable output). |
+| `station` | Optional station id; omit for handcraft-anywhere. |
+| `craftTimeSec` | Job duration. |
+| `xp` | Optional `{ amount }` granted via forge-progression on completion. |
+| `requires` | Optional gating: `unlock`, `level.min`, `identity`, `equippedTag`. |
+
+## Knowledge: who can craft it
+
+By default a character must **learn** a recipe before crafting it:
+
+```lua
+exports["forge-crafting"]:LearnRecipe(characterId, "recipe:health_tonic", "trainer")
+```
+
+Set `requires = { unlock = false }` to make a recipe **common knowledge**, anyone can craft it with
+no learning step. (The shipped `recipe:bandage` uses this so a fresh character can craft immediately.)
+
+## Craft it
+
+```lua
+exports["forge-crafting"]:CraftRequest(characterId, "recipe:health_tonic", 1)
+```
+
+The job validates ingredients, runs for `craftTimeSec`, and consumes ingredients **at completion**, so cancelling, disconnecting, or walking away mid-craft is lossless (no ingredients lost, no output
+minted). On success the output is added to the bag (overflow spills to a world drop) and any `xp` is
+granted.
+
+<Tip>
+  To ship your own neutral default recipe, add it to `forge-crafting`'s `shared/data/recipes.lua`
+  with `ShipDefaults = true`.
+</Tip>
+
+<Card title="Back to the packages" icon="cubes" href="/packages/overview" />
